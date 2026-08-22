@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import hashlib
 import secrets
 
 from sqlalchemy.orm import Session
@@ -15,6 +16,19 @@ RESET_TOKEN_EXPIRATION_MINUTES = 15
 
 
 # =========================================================
+# TOKEN HASHING
+# =========================================================
+
+def hash_reset_token(token: str) -> str:
+    """
+    Hash a password-reset token before storing it in the database.
+    """
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+
+# =========================================================
 # CREATE PASSWORD RESET TOKEN
 # =========================================================
 
@@ -26,9 +40,10 @@ def create_password_reset_token(
     Find the user by email and create a secure,
     time-limited password reset token.
 
-    Returns:
-        token string if user exists
-        None if user does not exist
+    The raw token is returned to the caller so it can
+    be delivered through a secure email service.
+
+    Only the SHA-256 hash is stored in the database.
     """
 
     normalized_email = email.strip().lower()
@@ -45,19 +60,21 @@ def create_password_reset_token(
     # Generate a cryptographically secure token.
     token = secrets.token_urlsafe(32)
 
+    # Store only the hash in the database.
+    token_hash = hash_reset_token(token)
+
     # Token expires after 15 minutes.
     expires_at = (
-        datetime.utcnow()
+        datetime.now(timezone.utc)
         + timedelta(
             minutes=RESET_TOKEN_EXPIRATION_MINUTES
         )
     )
 
-    user.reset_token = token
+    user.reset_token = token_hash
     user.reset_token_expires = expires_at
 
     db.commit()
-    db.refresh(user)
 
     return token
 
@@ -82,9 +99,14 @@ def reset_password(
     if not token or not token.strip():
         return False, "Reset token is required."
 
+    # Hash the supplied token before database lookup.
+    token_hash = hash_reset_token(
+        token.strip()
+    )
+
     user = (
         db.query(User)
-        .filter(User.reset_token == token.strip())
+        .filter(User.reset_token == token_hash)
         .first()
     )
 
@@ -95,7 +117,8 @@ def reset_password(
     # Token has expired.
     if (
         not user.reset_token_expires
-        or user.reset_token_expires < datetime.utcnow()
+        or user.reset_token_expires
+        < datetime.now(timezone.utc)
     ):
         user.reset_token = None
         user.reset_token_expires = None
@@ -109,11 +132,10 @@ def reset_password(
         new_password
     )
 
-    # Invalidate the token immediately after use.
+    # Invalidate token immediately after use.
     user.reset_token = None
     user.reset_token_expires = None
 
     db.commit()
-    db.refresh(user)
 
     return True, "Password reset successfully."

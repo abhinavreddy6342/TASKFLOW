@@ -24,6 +24,8 @@ from app.utils.security import (
     create_access_token,
 )
 
+from app.config import ENVIRONMENT
+
 
 router = APIRouter(
     prefix="/auth",
@@ -138,26 +140,32 @@ def forgot_password(
         data.email,
     )
 
-    # Development mode:
-    # Return the reset token directly so the
-    # complete password-reset flow can be tested.
-    #
-    # In production, this token should be sent
-    # through an email instead.
+    # Always return the same public response.
+    # This prevents attackers from discovering
+    # whether an email address is registered.
 
-    if not reset_token:
-        return {
-            "message": (
-                "If an account exists with this email, "
-                "a password reset link has been generated."
-            ),
-            "reset_token": None,
-        }
-
-    return {
-        "message": "Password reset token generated successfully.",
-        "reset_token": reset_token,
+    response = {
+        "message": (
+            "If an account exists with this email, "
+            "a password reset link has been sent."
+        ),
+        "reset_token": None,
     }
+
+    # -----------------------------------------------------
+    # DEVELOPMENT ONLY
+    # -----------------------------------------------------
+    # Returning the token is useful for local testing.
+    # This MUST NOT happen in production.
+    # -----------------------------------------------------
+
+    if ENVIRONMENT != "production" and reset_token:
+        response["message"] = (
+            "Password reset token generated successfully."
+        )
+        response["reset_token"] = reset_token
+
+    return response
 
 
 # =========================================================
