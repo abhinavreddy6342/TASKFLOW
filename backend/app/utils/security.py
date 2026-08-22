@@ -27,13 +27,10 @@ def verify_password(
     hashed_password: str,
 ) -> bool:
     """Verify a plain password against its hash."""
-    try:
-        return password_hash.verify(
-            password,
-            hashed_password,
-        )
-    except Exception:
-        return False
+    return password_hash.verify(
+        password,
+        hashed_password,
+    )
 
 
 # =========================================================
@@ -41,22 +38,16 @@ def verify_password(
 # =========================================================
 
 def create_access_token(data: dict) -> str:
-    """Create a signed JWT access token."""
-
+    """Create a JWT access token."""
     to_encode = data.copy()
 
-    expire = (
-        datetime.now(timezone.utc)
-        + timedelta(
-            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-        )
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    to_encode.update(
-        {
-            "exp": expire,
-        }
-    )
+    to_encode.update({
+        "exp": expire,
+    })
 
     return jwt.encode(
         to_encode,
@@ -67,7 +58,6 @@ def create_access_token(data: dict) -> str:
 
 def decode_access_token(token: str):
     """Decode and validate a JWT access token."""
-
     try:
         payload = jwt.decode(
             token,

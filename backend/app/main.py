@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.config import FRONTEND_URL
+from app.config import ENVIRONMENT, FRONTEND_URL
 from app.routes.auth import router as auth_router
 from app.routes.tasks import router as tasks_router
 
@@ -29,21 +29,22 @@ app = FastAPI(
 
 
 # =========================================================
-# CORS
+# CORS CONFIGURATION
 # =========================================================
 
-allowed_origins = [
-    FRONTEND_URL,
-]
+allowed_origins = [FRONTEND_URL]
 
-# Keep local development available
-if FRONTEND_URL != "http://localhost:5173":
+# Allow local development origins only in development
+if ENVIRONMENT == "development":
     allowed_origins.extend(
         [
             "http://localhost:5173",
             "http://127.0.0.1:5173",
         ]
     )
+
+# Remove duplicates while preserving order
+allowed_origins = list(dict.fromkeys(allowed_origins))
 
 
 app.add_middleware(
