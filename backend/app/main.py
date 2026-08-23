@@ -32,7 +32,16 @@ app = FastAPI(
 # CORS CONFIGURATION
 # =========================================================
 
-allowed_origins = [FRONTEND_URL]
+# Production Vercel frontend
+VERCEL_FRONTEND_URL = "https://taskflow-kappa-snowy-65.vercel.app"
+
+allowed_origins = [
+    VERCEL_FRONTEND_URL,
+]
+
+# Add configured frontend URL if it is different
+if FRONTEND_URL:
+    allowed_origins.append(FRONTEND_URL.rstrip("/"))
 
 # Allow local development origins only in development
 if ENVIRONMENT == "development":
